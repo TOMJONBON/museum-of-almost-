@@ -1303,6 +1303,59 @@
       .story-of-day { animation: none !important; }
       #particleCanvas { display: none !important; }
     }
+  
+    /* ===== Mobile fixes ===== */
+    html { -webkit-text-size-adjust: 100%; }
+    body { overflow-x: hidden; }
+    .hero { min-height: 88vh; min-height: 88svh; }
+    .exhibit-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); }
+    #backRoomGrid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)) !important; }
+    #backRoom { height: 100dvh; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+    .timeline-wrapper { -webkit-overflow-scrolling: touch; }
+
+    @media (hover: none) {
+      .card:hover { transform: none; box-shadow: 0 20px 44px -26px rgba(0,0,0,.6); }
+      .timeline-item:hover, .toggle-btn:hover { transform: none; }
+    }
+
+    .map-caption { display: none; margin: 1rem auto 0; text-align: center;
+      font-family: 'Special Elite', monospace; font-size: .9rem; }
+    .map-caption button { margin-top: .5rem; min-height: 44px; padding: .5rem 1.2rem;
+      background: var(--rust); color: var(--paper); border: 0; border-radius: 4px;
+      font-family: inherit; text-transform: uppercase; letter-spacing: .06em; }
+    .map-marker-group circle.hit { fill: transparent; stroke: none; filter: none; r: 22px !important; }
+
+    @media (max-width: 768px) {
+      .container { padding: 0 1rem; }
+      section { padding-top: 3.5rem; }
+      footer { padding-bottom: 6rem; }
+
+      .menu-toggle { position: fixed; top: .6rem; left: .6rem; z-index: 30; margin: 0; padding: 0;
+        width: 44px; height: 44px; background: rgba(16,21,18,.9);
+        border: 1px solid rgba(176,146,92,.3); border-radius: 8px; }
+      .wing-nav { position: fixed; top: 0; left: 0; right: 0; z-index: 25;
+        padding-top: 64px; max-height: 100svh; overflow-y: auto; }
+      .wing-nav a { padding: .9rem .2rem; font-size: .9rem; }
+
+      .card h3 { font-size: 1.4rem; }
+      .accession-tag, .portrait-role, .reading-time, .timeline-item .label { font-size: .75rem; }
+      .status-tag { font-size: .7rem; }
+      .timeline-item .year { font-size: .8rem; }
+      .toggle-btn, .share-btn { min-height: 44px; padding: .5rem 1rem; font-size: .75rem; }
+      .portrait-frame { flex-wrap: wrap; }
+      .accession-tag { margin-left: 0; width: 100%; }
+
+      .map-wrapper { padding: 1rem .5rem; }
+      .map-container { aspect-ratio: 2 / 1 !important; }
+      .map-marker-group text, .map-marker-group .label-bg { display: none; }
+      .map-caption.show { display: block; }
+
+      .mood-toggle { bottom: .6rem; right: .6rem; max-width: calc(100vw - 1.2rem);
+        flex-wrap: wrap; justify-content: center; padding: .3rem .5rem; }
+      .mood-toggle button { font-size: 1rem; padding: .25rem .4rem; }
+      #modeIndicator { display: none; }
+      #backToTop { right: auto; left: .8rem; bottom: .8rem; }
+    }
   </style>
 </head>
 <body>
@@ -1722,7 +1775,7 @@
       <p>From Austen's abandoned pages to Ring's billion-dollar rejection — here's when almost happened.</p>
     </div>
     <div class="timeline-wrapper">
-      <div class="timeline" id="timeline">
+      <div class="timeline" id="timelineTrack">
         <div class="timeline-item" data-target="austen"><span class="year">1805</span><div class="bar completed"></div><span class="label">Austen<br>The Watsons</span><div class="dot completed"></div></div>
         <div class="timeline-item" data-target="aeromobile"><span class="year">1930s</span><div class="bar completed"></div><span class="label">Aeromobile</span><div class="dot completed"></div></div>
         <div class="timeline-item" data-target="harper-lee"><span class="year">1957</span><div class="bar completed"></div><span class="label">Lee<br>Mockingbird</span><div class="dot completed"></div></div>
@@ -1754,6 +1807,7 @@
           <text x="400" y="392" fill="#3a4a4a" font-family="'Special Elite',monospace" font-size="10" text-anchor="middle" opacity="0.5">Click any pin to explore</text>
         </svg>
       </div>
+      <div class="map-caption" id="mapCaption"></div>
       <div class="map-legend">
         <span>Literature</span>
         <span>Inventions</span>
@@ -1867,8 +1921,6 @@
     // ============================================================
     const SUPABASE_URL = 'https://wvotopdnltqwgxkpmies.supabase.co';  // NO /rest/v1/
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind2b3RvcGRubHRxd2d4a3BtaWVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODczMjQxODIsImV4cCI6MjEwMjkwMDE4Mn0.Y-SvAXcZgcEl4Xugqy_XdIVlrfp1NT6dbLCpVxk-NwE';
-  
-  
 
     // ============================================================
     // 2. INIT SUPABASE
@@ -1884,9 +1936,9 @@
 
     function escapeHtml(text) {
       if (!text) return '';
-      const div = document.createElement('div');
-      div.textContent = text;
-      return div.innerHTML;
+      return String(text).replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[c]));
     }
 
     window.toggleCard = function(card) {
@@ -1927,13 +1979,14 @@
     };
 
     function createCardFromStory(story) {
+      const imgUrl = (story.image_url && String(story.image_url).startsWith(SUPABASE_URL + '/storage/')) ? story.image_url : null;
       const article = document.createElement('article');
       article.className = 'card';
       article.dataset.id = story.id;
       article.dataset.wing = story.wing.toLowerCase();
 
-      const imageHtml = story.image_url
-        ? `<div class="portrait"><img src="${story.image_url}" alt="${story.title}" loading="lazy"></div>`
+      const imageHtml = imgUrl
+        ? `<div class="portrait"><img src="${imgUrl}" alt="${escapeHtml(story.title)}" loading="lazy"></div>`
         : `<div class="portrait" style="background:#d8cdb0;display:flex;align-items:center;justify-content:center;font-size:2rem;color:#8B7548;">🖼️</div>`;
 
       article.innerHTML = `
@@ -1943,7 +1996,7 @@
             <div class="portrait-name">${escapeHtml(story.name)}</div>
             <div class="portrait-role">submitted story</div>
           </div>
-          <span class="accession-tag">MoA / ${story.id.slice(0,8)}</span>
+          <span class="accession-tag">MoA / ${escapeHtml(String(story.id).slice(0,8))}</span>
         </div>
         <div class="card-top">
           <span class="status-tag">Community Exhibit</span>
@@ -1956,11 +2009,11 @@
           <div class="pct">submitted by ${escapeHtml(story.name)}</div>
         </div>
         <button class="toggle-btn" aria-expanded="false">Read the story</button>
-        <button class="share-btn" data-id="${story.id}">↗ Share</button>
+        <button class="share-btn" data-id="${escapeHtml(story.id)}">↗ Share</button>
         <div class="interview"><div>
           <div class="interview-inner">
             <div class="qa"><div class="q">The story</div><p class="a">${escapeHtml(story.story)}</p></div>
-            ${story.image_url ? `<div style="margin-top:0.5rem;"><img src="${story.image_url}" alt="Exhibit image" style="max-width:100%;border-radius:4px;"></div>` : ''}
+            ${imgUrl ? `<div style="margin-top:0.5rem;"><img src="${imgUrl}" alt="Exhibit image" style="max-width:100%;border-radius:4px;"></div>` : ''}
             <div class="curator-note"><span class="eyebrow">Submitted by</span><p>${escapeHtml(story.name)} · ${story.location ? escapeHtml(story.location) : 'Location unknown'}</p></div>
           </div>
         </div></div>
@@ -2095,94 +2148,6 @@
       }
     };
 
-
-
-      const container = document.createElement('div');
-      container.id = 'curatorPanel';
-      container.style.cssText = `
-        position: fixed; top: 80px; right: 20px; z-index: 999;
-        background: #1B2420; color: #EDE6D6; padding: 1.5rem;
-        border: 1px solid #B0925C; border-radius: 8px;
-        max-width: 400px; max-height: 80vh; overflow-y: auto;
-        font-family: 'Source Serif 4', serif;
-        box-shadow: 0 10px 40px rgba(0,0,0,0.6);
-      `;
-      document.body.appendChild(container);
-
-      const title = document.createElement('h2');
-      title.textContent = '🖋️ Curator Panel — Pending Stories';
-      title.style.fontFamily = "'Fraunces', serif";
-      title.style.marginBottom = '1rem';
-      container.appendChild(title);
-
-      const adminClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
-
-      const { data: pending, error } = await adminClient
-        .from('stories')
-        .select('*')
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        container.innerHTML += `<p style="color:#B15A32;">Error loading pending stories: ${error.message}</p>`;
-        return;
-      }
-
-      if (!pending || pending.length === 0) {
-        container.innerHTML += `<p style="color:#96A69B;">🎉 No pending stories. You're all caught up!</p>`;
-        return;
-      }
-
-      pending.forEach(story => {
-        const div = document.createElement('div');
-        div.style.cssText = `
-          border-bottom: 1px solid rgba(176,146,92,0.2);
-          padding: 0.8rem 0;
-          margin-bottom: 0.5rem;
-        `;
-        div.innerHTML = `
-          <strong>${escapeHtml(story.title)}</strong><br>
-          <span style="font-size:0.8rem;color:#96A69B;">by ${escapeHtml(story.name)} · ${story.location ? escapeHtml(story.location) : 'Unknown location'}</span>
-          <p style="font-size:0.9rem;margin:0.3rem 0;">${escapeHtml(story.story.slice(0, 150))}${story.story.length > 150 ? '…' : ''}</p>
-          ${story.image_url ? `<img src="${story.image_url}" style="max-width:100px;max-height:80px;object-fit:cover;border-radius:4px;margin:0.3rem 0;">` : ''}
-          <div style="margin-top:0.5rem;display:flex;gap:0.5rem;">
-            <button data-id="${story.id}" data-action="approve" style="background:#B15A32;color:#EDE6D6;border:none;padding:0.3rem 0.8rem;border-radius:4px;cursor:pointer;">✅ Approve</button>
-            <button data-id="${story.id}" data-action="reject" style="background:#555;color:#EDE6D6;border:none;padding:0.3rem 0.8rem;border-radius:4px;cursor:pointer;">❌ Reject</button>
-          </div>
-        `;
-        container.appendChild(div);
-      });
-
-      container.querySelectorAll('button[data-action]').forEach(btn => {
-        btn.addEventListener('click', async function() {
-          const id = this.dataset.id;
-          const action = this.dataset.action;
-          const newStatus = action === 'approve' ? 'approved' : 'rejected';
-
-          if (!confirm(`Are you sure you want to ${action} this story?`)) return;
-
-          const { error } = await adminClient
-            .from('stories')
-            .update({ status: newStatus })
-            .eq('id', id);
-
-          if (error) {
-            alert('Error updating story: ' + error.message);
-            return;
-          }
-
-          const itemDiv = this.closest('div');
-          if (itemDiv) itemDiv.remove();
-
-          if (newStatus === 'approved') {
-            loadApprovedStories();
-          }
-
-          alert(`Story ${action}d successfully!`);
-        });
-      });
-    }
-
     function placeMarkers() {
       const SVG_NS = 'http://www.w3.org/2000/svg';
       const VB_W = 800, VB_H = 400;
@@ -2210,6 +2175,14 @@
         g.setAttribute('class', 'map-marker-group');
         g.setAttribute('data-target', id);
         g.setAttribute('transform', `translate(${x.toFixed(2)},${y.toFixed(2)})`);
+        if (window.matchMedia('(max-width: 768px)').matches) {
+          const hit = document.createElementNS(SVG_NS, 'circle');
+          hit.setAttribute('class', 'hit');
+          hit.setAttribute('cx', '0');
+          hit.setAttribute('cy', '0');
+          hit.setAttribute('r', '22');
+          g.appendChild(hit);
+        }
 
         const circle = document.createElementNS(SVG_NS, 'circle');
         circle.setAttribute('cx', '0');
@@ -2234,7 +2207,23 @@
 
         g.addEventListener('click', (e) => {
           e.stopPropagation();
-          if (id && window.__scrollToCard) window.__scrollToCard(id);
+          if (window.matchMedia('(max-width: 768px)').matches) {
+            document.querySelectorAll('.map-marker-group').forEach(m => m.classList.remove('active'));
+            g.classList.add('active');
+            const cap = document.getElementById('mapCaption');
+            if (!cap) { if (id && window.__scrollToCard) window.__scrollToCard(id); return; }
+            cap.textContent = '';
+            const label = document.createElement('div');
+            label.textContent = name;
+            const go = document.createElement('button');
+            go.type = 'button';
+            go.textContent = 'Read the story';
+            go.onclick = () => window.__scrollToCard(id);
+            cap.append(label, go);
+            cap.classList.add('show');
+          } else if (id && window.__scrollToCard) {
+            window.__scrollToCard(id);
+          }
         });
         g.addEventListener('mouseenter', () => circle.setAttribute('r', '7'));
         g.addEventListener('mouseleave', () => {
@@ -2467,11 +2456,13 @@
           badge.textContent = '📌 Today\'s Pick';
           daily.style.position = 'relative';
           daily.appendChild(badge);
-          setTimeout(() => {
-            daily.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            daily.classList.add('highlight');
-            setTimeout(() => daily.classList.remove('highlight'), 1500);
-          }, 800);
+          if (!window.matchMedia('(max-width: 768px)').matches) {
+            setTimeout(() => {
+              daily.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              daily.classList.add('highlight');
+              setTimeout(() => daily.classList.remove('highlight'), 1500);
+            }, 800);
+          }
         }
       }, 100);
 
@@ -2648,7 +2639,6 @@
     document.addEventListener('DOMContentLoaded', () => {
       document.querySelectorAll('.card').forEach(c => c.classList.add('in-view'));
       loadApprovedStories();
-
       initUI();
       placeMarkers();
     });
