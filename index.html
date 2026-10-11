@@ -1867,8 +1867,8 @@
     // ============================================================
     const SUPABASE_URL = 'https://wvotopdnltqwgxkpmies.supabase.co';  // NO /rest/v1/
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind2b3RvcGRubHRxd2d4a3BtaWVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODczMjQxODIsImV4cCI6MjEwMjkwMDE4Mn0.Y-SvAXcZgcEl4Xugqy_XdIVlrfp1NT6dbLCpVxk-NwE';
-    const SUPABASE_SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind2b3RvcGRubHRxd2d4a3BtaWVzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NzMyNDE4MiwiZXhwIjoyMTAyOTAwMTgyfQ.aC6PMZWskXygMiyq8f1GSWjsHCkjwtzMS1_x14Ki2FE';
-    const CURATOR_PASSWORD = 'museum2026';
+  
+  
 
     // ============================================================
     // 2. INIT SUPABASE
@@ -2095,15 +2095,7 @@
       }
     };
 
-    async function initCurator() {
-      const params = new URLSearchParams(window.location.search);
-      if (!params.has('curator')) return;
 
-      const pwd = prompt('Enter curator password:');
-      if (pwd !== CURATOR_PASSWORD) {
-        alert('Incorrect password.');
-        return;
-      }
 
       const container = document.createElement('div');
       container.id = 'curatorPanel';
@@ -2656,7 +2648,7 @@
     document.addEventListener('DOMContentLoaded', () => {
       document.querySelectorAll('.card').forEach(c => c.classList.add('in-view'));
       loadApprovedStories();
-      initCurator();
+
       initUI();
       placeMarkers();
     });
